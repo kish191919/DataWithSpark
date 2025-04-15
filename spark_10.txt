@@ -1,0 +1,168 @@
+
+[ Chapter.02 Apache Spark 기초-32. Spark 클러스터 구성 (Standalone 테스트).... ]
+
+-------------------------------------------------------------------------------
+- Standalone 테스트.... (by spark-shell Standalone 클러스터 실행)
+-------------------------------------------------------------------------------
+//--spark-shell 도움말 보기....
+$ cd /danny/spark3
+$ ./bin/spark-shell --help  (-> --master 옵션 확인....)
+  --master MASTER_URL         spark://host:port, mesos://host:port, yarn,
+                              k8s://https://host:port, or local (Default: local[*]).
+
+//--spark-shell 실행.... (w/ --master spark://host:port)
+$ ./bin/spark-shell --master spark://spark-master-01:7177
+
+//--spark-shell 확인....
+scala> sc
+scala> spark
+scala> sc.master
+res2: String = spark://spark-master-01:7177
+scala> sc.uiWebUrl
+res3: Option[String] = Some(http://spark-master-01:4040)
+
+//--Spark App 웹UI 확인....
+http://spark-master-01:4040
+Executors > executor 3개 할당된 것 확인.... (-> Cores 8, ALL Cores ????) (-> 클러스터의 모든 core 할당 받는다? 위험하네!)
+
+//--Standalone 웹UI 확인....
+http://spark-master-01:8180
+Running Applications > (Name / Cores / Memory per Executor 확인....)
+Running Applications > Application ID > Executor Summary > (ExecutorID / Cores / Memory 확인....) (-> Cores 8, ALL Cores ????) (-> Memory 1024, only 1024.0 MiB ????)
+Running Applications > Application ID > Executor Summary > Worker > (Master URL / Cores / Memory 확인....)
+Running Applications > Application ID > Executor Summary > Worker > Running Executors > (Cores / Memory / Job Details 확인....)
+
+
+
+
+-------------------------------------------------------------------------------
+- Standalone 테스트....#2 (by spark-shell Standalone 클러스터 실행) (w/ Executor의 MEMORY, COREs, TOTAL 옵션)
+-------------------------------------------------------------------------------
+//--spark-shell 도움말 보기....
+$ cd /danny/spark3
+$ ./bin/spark-shell --help  (-> --executor-memory, --executor-cores, --num-executors, --total-executor-cores 옵션 확인....)
+  --executor-memory MEM       Memory per executor (e.g. 1000M, 2G) (Default: 1G). 
+
+ Spark standalone, YARN and Kubernetes only:
+  --executor-cores NUM        Number of cores used by each executor. (Default: 1 in
+                              YARN and K8S modes, or all available cores on the worker
+                              in standalone mode).
+
+ Spark on YARN and Kubernetes only:
+  --num-executors NUM         Number of executors to launch (Default: 2).
+                              If dynamic allocation is enabled, the initial number of
+                              executors will be at least NUM.
+
+ Spark standalone, Mesos and Kubernetes only:
+  --total-executor-cores NUM  Total cores for all executors.
+
+//--spark-shell 실행.... (w/ --master spark://host:port) (w/ memory,cores,total 옵션)
+$ cd /danny/spark3
+$ ./bin/spark-shell --master spark://spark-master-01:7177 --executor-memory 2G --executor-cores 2 --total-executor-cores 12
+
+//--Spark App 웹UI 확인.... (-> executor 6개, cores 2개 Good!!!!)
+http://spark-master-01:4040
+Executors > executor 6개 할당된 것 확인.... executor 당 cores 2개 할당된 것 확인....
+
+//--Standalone 웹UI(에서도) (재)확인.... (-> executor 6개, cores 2개 Good!!!!)
+http://spark-master-01:8180
+Running Applications > (Name / Cores / Memory per Executor 확인....)
+Running Applications > Application ID > Executor Summary > (ExecutorID / Cores / Memory 확인....) (-> Cores 2, OK!) (-> Memory 2048, OK!)
+Running Applications > Application ID > Executor Summary > Worker > (Master URL / Cores / Memory 확인....)
+Running Applications > Application ID > Executor Summary > Worker > Running Executors > (Cores / Memory / Job Details 확인....)
+
+//--driver 프로세스 확인.... (on spark-master-01)
+$ jps
+SparkSubmit
+
+//--executor(6개) 프로세스 확인.... (on spark-worker-01 ~ 03)
+$ jps
+CoarseGrainedExecutorBackend -> executor 프로세스....
+
+
+
+
+-------------------------------------------------------------------------------
+- spark-env.sh 설정.... (SPARK_MASTER_OPTS="-Dspark.deploy.defaultCores=<value>" 설정....) (on spark-master-01)
+-------------------------------------------------------------------------------
+$ vi /danny/spark3/conf/spark-env.sh
+JAVA_HOME=/danny/jdk8
+SPARK_MASTER_PORT=7177  # default: 7077
+SPARK_MASTER_WEBUI_PORT=8180  # default: 8080
+SPARK_WORKER_PORT=7178  # default: random
+SPARK_WORKER_WEBUI_PORT=8181  # default: 8081
+SPARK_WORKER_CORES=8  # default: all available
+SPARK_WORKER_MEMORY=8G  # default: machine's total RAM minus 1 GiB
+SPARK_PUBLIC_DNS=${HOSTNAME}
+SPARK_MASTER_OPTS="-Dspark.deploy.defaultCores=5"    (-> 특별한 요청이 없다면 Total Core 5개를 할당하겠다!)
+
+//--copy 'spark-env.sh' to spark-worker-01 ~ 03....
+$ scp -r /danny/spark3/conf/spark-env.sh spark@spark-worker-01:/danny/spark3/conf/
+$ scp -r /danny/spark3/conf/spark-env.sh spark@spark-worker-02:/danny/spark3/conf/
+$ scp -r /danny/spark3/conf/spark-env.sh spark@spark-worker-03:/danny/spark3/conf/
+
+//--spark standalone 재기동.... + 웹UI 확인....
+$ /danny/spark3/sbin/stop-all.sh
+$ /danny/spark3/sbin/start-all.sh
+
+//--spark-shell 실행.... (w/ --master spark://host:port) (w/o memory,cores,total 옵션)
+$ cd /danny/spark3
+$ ./bin/spark-shell --master spark://spark-master-01:7177
+
+//--spark-shell (동시에) 실행....#2 (w/ --master spark://host:port) (w/ memory,cores 옵션) (w/o total 옵션)
+$ cd /danny/spark3
+$ ./bin/spark-shell --master spark://spark-master-01:7177 --executor-memory 2G --executor-cores 2
+
+//--Standalone 웹UI 확인.... (-> NO ALL Cores, Good!!!!) (-> --total-executor-cores(=spark.cores.max) 옵션을 깜빡해도 이제 어느정도 안전하다 ^^)
+http://spark-master-01:8180
+Running Applications > Application ID > Executor Summary > (ExecutorID / Cores / Memory 확인....)
+
+
+
+
+-------------------------------------------------------------------------------
+- spark-env.sh 설정....#2 (SPARK_LOCAL_DIRS=/danny/spark3/local 설정....) (on spark-master-01)
+-------------------------------------------------------------------------------
+$ vi /danny/spark3/conf/spark-env.sh
+JAVA_HOME=/danny/jdk8
+SPARK_MASTER_PORT=7177  # default: 7077
+SPARK_MASTER_WEBUI_PORT=8180  # default: 8080
+SPARK_WORKER_PORT=7178  # default: random
+SPARK_WORKER_WEBUI_PORT=8181  # default: 8081
+SPARK_WORKER_CORES=8  # default: all available
+SPARK_WORKER_MEMORY=8G  # default: machine's total RAM minus 1 GiB
+SPARK_PUBLIC_DNS=${HOSTNAME}
+SPARK_MASTER_OPTS="-Dspark.deploy.defaultCores=5"
+SPARK_LOCAL_DIRS=/danny/spark3/local    (-> 디폴트 "/tmp" -> 위치를 바꿔서 shuffle data, cached rdd block 확인을 좀 쉽게 하자....)
+
+//--copy 'spark-env.sh' to spark-worker-01 ~ 03....
+$ scp -r /danny/spark3/conf/spark-env.sh spark@spark-worker-01:/danny/spark3/conf/
+$ scp -r /danny/spark3/conf/spark-env.sh spark@spark-worker-02:/danny/spark3/conf/
+$ scp -r /danny/spark3/conf/spark-env.sh spark@spark-worker-03:/danny/spark3/conf/
+
+//--spark standalone 재기동.... + 웹UI 확인....
+$ /danny/spark3/sbin/stop-all.sh
+$ /danny/spark3/sbin/start-all.sh
+
+//--spark-shell 실행.... (w/ --master spark://host:port) (w/o memory,cores,total 옵션)
+$ cd /danny/spark3
+$ ./bin/spark-shell --master spark://spark-master-01:7177
+
+//--Word Count 코드 작성.... (Shuffle Data Write/Read....)
+scala> val rdd_wc = sc.textFile("README.md").flatMap(_.split(" ")).map((_,1)).reduceByKey(_+_)
+scala> rdd_wc.collect.take(10).foreach(println)
+
+//--RDD Cache.... (on Disk....) (Spark App 웹UI > Storage > RDD Name > Block Name 확인....)
+scala> rdd_wc.persist(org.apache.spark.storage.StorageLevel.DISK_ONLY)
+scala> rdd_wc.count()
+
+//--LOCAL_DIRS 확인.... (/danny/spark3/local) (on spark-master-01) (on spark-worker-01 ~ 03)
+$ find /danny/spark3/local
+$ ssh spark-worker-01 'find /danny/spark3/local/spark*/executor*/blockmgr*'
+$ ssh spark-worker-02 'find /danny/spark3/local/spark*/executor*/blockmgr*'
+$ ssh spark-worker-03 'find /danny/spark3/local/spark*/executor*/blockmgr*'
+$ ls -al /danny/spark3/local/spark*/executor*/blockmgr*/*  (-> Spark App 웹UI > Storage > RDD Name > Block Name 확인....)
+	
+
+
+

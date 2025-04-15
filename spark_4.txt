@@ -1,0 +1,50 @@
+
+[ Chapter.02 Apache Spark 기초-24. Hadoop 클러스터 구성 (HDFS 시작_종료).... ]
+
+-------------------------------------------------------------------------------
+- HDFS 포맷.... (on spark-master-01)
+-------------------------------------------------------------------------------
+//--HDFS 포맷.... (최초 한번만, 파일시스템 초기화....)
+$ /danny/hadoop3/bin/hdfs namenode -format
+
+
+
+
+-------------------------------------------------------------------------------
+- HDFS 시작.... (on spark-master-01)
+-------------------------------------------------------------------------------
+//--HDFS 시작.... (on spark-master-01)
+$ /danny/hadoop3/sbin/start-dfs.sh
+
+//--master 프로세스 확인.... (on spark-master-01)
+$ jps
+NameNode
+SecondaryNameNode
+
+//--worker 프로세스 확인.... (on spark-worker-01 ~ 03)
+$ jps
+DataNode
+
+//--HDFS 웹UI 확인.... (on 크롬 브라우저) (필요시 방화벽 오픈, HDFS NameNode HTTP, 9870)
+http://spark-master-01:9870
+Overview 탭 > Summary > Live Nodes 개수 확인.... > Live Nodes 링크 클릭.... > Node 리스트 확인.... > Node의 도메인네임 확인....
+Utilities 탭 > Browse the file system > Browse Directory > '/' 디렉토리 내용 확인....
+
+** 만약 웹UI에서 DataNode가 보이지 않는다면? (필요시 방화벽 오픈, VPC INTERNAL, All TCP, 0 - 65535, 10.0.0.0/16)
+DataNode 로그 확인 (on spark-worker-01 ~ 03)
+$ tail -f /danny/hadoop3/logs/hadoop-spark-datanode-spark-worker-01.log
+$ tail -f /danny/hadoop3/logs/hadoop-spark-datanode-spark-worker-02.log
+$ tail -f /danny/hadoop3/logs/hadoop-spark-datanode-spark-worker-03.log
+Retrying connect to server: spark-master-01/10.0.2.95:9000....
+
+
+
+
+-------------------------------------------------------------------------------
+- HDFS 종료.... (필요시) (on spark-master-01)
+-------------------------------------------------------------------------------
+$ /danny/hadoop3/sbin/stop-dfs.sh
+
+
+
+

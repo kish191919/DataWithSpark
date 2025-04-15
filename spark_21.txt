@@ -1,0 +1,976 @@
+
+[ Chapter.01 Spark Core-19. Spark Core 실습.... ]
+
+
+------------------------------------------------------------------
+[LAB] Driver Program, Executor 프로세스.... #01
+------------------------------------------------------------------
+Local 멀티쓰레드 환경 실행(--master local[*])
+
+$ cd /danny/spark3/
+$ ./bin/spark-shell --master local[*]  //--스팍쉘 실행....
+
+$ jps  //--드라이버프로그램(SparkSubmit) 확인.... (다른 터미널에서)
+$ ps -ef | grep SparkSubmit  //--실행된 명령어 확인....
+$ ps -ef | grep <부모프로세스ID>  //--SparkSubmit을 실행시킨 부모 프로세스 확인....
+드라이버 웹UI 확인 (http://spark-master-01:4040)
+
+scala> :quit  //--스파크쉘 나가기 (드라이버프로그램 종료)
+
+$ jps  //--드라이버프로그램(SparkSubmit) '종료' 확인.... (다른 터미널에서)
+드라이버 웹UI 확인, '종료' (http://spark-master-01:4040)
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+[LAB] Driver Program, Executor 프로세스.... #02
+------------------------------------------------------------------
+Cluster 분산 환경 실행(--master spark://<host>:7177) (디폴트 포트는 7077)
+
+$ cd /danny/spark3/
+$ ./sbin/start-master.sh  //--마스터 실행
+
+$ vi /danny/spark3/logs/spark-spark-org.apache.spark.deploy.master.Master-1-spark-master-01.out  //--마스터 로그 확인....
+$ vi /danny/spark3/conf/spark-env.sh  //--설정(spark-env.sh) 확인....
+마스터 웹UI 확인 (http://spark-master-01:8180)
+$ jps  //--마스터(Master) 확인.... (다른 터미널에서)
+$ ps -ef | grep Master  //--실행된 명령어 확인....
+
+$ ./sbin/start-worker.sh spark://spark-master-01:7177  //--워커 실행
+
+$ vi /danny/spark3/logs/spark-spark-org.apache.spark.deploy.worker.Worker-1-spark-master-01.out  //--워커 로그 확인....
+$ vi /danny/spark3/conf/spark-env.sh  //--설정(spark-env.sh) 확인....
+워커 웹UI 확인 (http://spark-master-01:8181)
+마스터 웹UI 확인, '워커 목록' (http://spark-master-01:8180)
+$ jps  //--워커(Worker) 확인.... (다른 터미널에서)
+$ ps -ef | grep Worker  //--실행된 명령어 확인....
+
+$ ./bin/spark-shell --master spark://spark-master-01:7177  //--스팍쉘 실행....
+$ jps  //--드라이버프로그램(SparkSubmit), 익스큐터(CoarseGrainedExecutorBackend) 확인
+$ ps -ef | grep SparkSubmit  //--실행된 명령어 확인....
+$ ps -ef | grep CoarseGrainedExecutorBackend  //--실행된 명령어 확인....
+$ ps -ef | grep <부모프로세스ID>  //--CoarseGrainedExecutorBackend을 실행시킨 부모 프로세스 확인....
+$ vi /danny/spark3/logs/spark-spark-org.apache.spark.deploy.worker.Worker-1-spark-master-01.out  //--워커 로그 확인....
+마스터 웹UI 확인, 'Running Applications 목록' (http://spark-master-01:8180)
+
+scala> :q  //--스파크쉘 나가기 (드라이버프로그램 종료)
+$ jps  //--익스큐터(CoarseGrainedExecutorBackend) '종료' 확인
+마스터 웹UI 확인, 'Completed Applications 목록' (http://spark-master-01:8180)
+------------------------------------------------------------------
+
+
+++++
+
+
+------------------------------------------------------------------
+[LAB] Driver Program, Executor Log.... #01
+------------------------------------------------------------------
+Local 멀티쓰레드 환경 실행(--master local[*])
+
+$ cd /danny/spark3/
+$ ./bin/spark-shell --master local[*]
+$ jps  //--드라이버프로그램(SparkSubmit) 확인
+
+scala> val rdd = sc.parallelize(1 to 5)
+scala> val rdd2 = rdd.map{x => println(x + " @map"); x}
+scala> rdd2.collect.foreach(x => println(x + " @collect"))
+로그 출력 확인....(콘솔)
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+[LAB] Driver Program, Executor Log.... #02
+------------------------------------------------------------------
+Cluster 분산 환경 실행(--master spark://<host>:7077)
+
+$ cd /danny/spark3/
+$ ./sbin/start-master.sh  //--마스터 실행
+$ ./sbin/start-worker.sh spark://spark-master-01:7177  //--워커 실행
+$ jps  //--마스터(Master), 워커(Worker) 확인
+
+$ ./bin/spark-shell --master spark://spark-master-01:7177
+$ jps  //--드라이버프로그램(SparkSubmit), 익스큐터(CoarseGrainedExecutorBackend) 확인
+
+scala> val rdd = sc.parallelize(1 to 5)
+scala> val rdd2 = rdd.map{x => println(x + " @map"); x}
+scala> rdd2.collect.foreach(x => println(x + " @collect"))
+로그 출력 확인....(콘솔 + Web UI 로그파일: stdout)
+------------------------------------------------------------------
+
+
+++++
+
+
+------------------------------------------------------------------
+[LAB] Spark Standalone Cluster 실행.... #01 (w/ Default Configuration....)
+------------------------------------------------------------------
+Master 실행....
+$ ./sbin/start-master.sh
+웹 UI 확인 (http://spark-master-01:8180/) (http://<host>:8080/)
+프로세스 확인 (Master)
+로그 확인
+
+Worker 실행....
+$ ./sbin/start-worker.sh spark://spark-master-01:7177
+웹 UI 확인 (http://spark-master-01:8180/) (Workers 리스트 확인.... Address/Cores/Memory 확인....)
+웹 UI 확인 (http://spark-master-01:8181/)
+프로세스 확인 (Worker)
+로그 확인
+
+Worker 중지....
+$ sbin/stop-worker.sh
+Master 중지....
+$ sbin/stop-master.sh
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+[LAB] Spark Standalone Cluster 실행.... #02 (w/ Configuration Options....)
+------------------------------------------------------------------
+Master 실행.... (w/ Configuration Options....)
+$ ./sbin/start-master.sh --host spark-master-01 --port 7777 --webui-port 8188
+웹 UI 확인 (http://spark-master-01:8188/)
+프로세스 확인 (Master)
+로그 확인
+
+Worker 실행.... (w/ Configuration Options....)
+$ ./sbin/start-worker.sh spark://spark-master-01:7777 --host spark-master-01 --port 12345 --webui-port 8042 --cores 4 --memory 4G --work-dir ./work_dir_4_worker
+웹 UI 확인 (http://spark-master-01:8188/) (Workers 리스트 확인.... Address/Cores/Memory 확인....)
+웹 UI 확인 (http://spark-master-01:8042/)
+프로세스 확인 (Worker)
+로그 확인
+
+Worker 중지....
+$ sbin/stop-worker.sh
+Master 중지....
+$ sbin/stop-master.sh
+------------------------------------------------------------------
+
+
+++++
+
+
+------------------------------------------------------------------
+[LAB] Spark Application 배포.... #01
+------------------------------------------------------------------
+Deploy Mode : client (default)
+
+Standalone Cluster 실행
+$ ./sbin/start-master.sh
+$ ./sbin/start-worker.sh spark://spark-master-01:7177
+
+Application 배포 (콘솔 출력 내용 확인, stdout, stderr)
+$ ./bin/spark-submit --master spark://spark-master-01:7177 --class org.apache.spark.examples.SparkPi /danny/spark3/examples/jars/spark-examples_2.12-3.2.1.jar 3000
+
+프로세스 확인 (SparkSubmit, CoarseGrainedExecutorBackend)
+$ jps
+
+웹 UI 확인 (Running Applications, 정상구동)
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+[LAB] Spark Application 배포.... #02
+------------------------------------------------------------------
+Deploy Mode : cluster
+
+Standalone Cluster 실행
+$ ./sbin/start-master.sh
+$ ./sbin/start-worker.sh spark://spark-master-01:7177
+
+Application 배포 (콘솔 출력 내용 확인)
+$ ./bin/spark-submit --deploy-mode cluster --master spark://spark-master-01:7177 --class org.apache.spark.examples.SparkPi /danny/spark3/examples/jars/spark-examples_2.12-3.2.1.jar 3000
+
+프로세스 확인 (DriverWrapper, CoarseGrainedExecutorBackend)
+$ jps
+
+웹 UI 확인 (Running Applications, Running Drivers, 정상구동)
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+[LAB] Spark Application 배포.... #03
+------------------------------------------------------------------
+Deploy Mode : cluster (Core, Memory Config)
+
+Standalone Cluster 실행
+$ ./sbin/start-master.sh
+$ ./sbin/start-worker.sh spark://spark-master-01:7177
+
+Application 배포 (콘솔 출력 내용 확인, JSON 메시지)
+$ ./bin/spark-submit --total-executor-cores 2 --executor-cores 1 --executor-memory 512M --driver-memory 512M --deploy-mode cluster --master spark://spark-master-01:7177 --class org.apache.spark.examples.SparkPi /danny/spark3/examples/jars/spark-examples_2.12-3.2.1.jar 3000
+
+프로세스 확인 (DriverWrapper, CoarseGrainedExecutorBackend 2개)
+$ jps
+
+웹 UI 확인 (Running Applications, Running Drivers, 정상구동)
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+[LAB] Spark Application 배포.... #04
+------------------------------------------------------------------
+Deploy Mode : cluster (Driver Auto Restart)
+
+Standalone Cluster 실행
+$ ./sbin/start-master.sh
+$ ./sbin/start-worker.sh spark://spark-master-01:7177
+
+Application 배포 (콘솔 출력 내용 확인, JSON 메시지)
+$ ./bin/spark-submit --supervise --total-executor-cores 2 --executor-cores 1 --executor-memory 512M --driver-memory 512M --deploy-mode cluster --master spark://spark-master-01:7177 --class org.apache.spark.examples.SparkPi /danny/spark3/examples/jars/spark-examples_2.12-3.2.1.jar 9000
+
+프로세스 확인 (DriverWrapper, CoarseGrainedExecutorBackend)
+$ jps
+
+DriverWrapper 프로세스 Kill
+$ kill -9 프로세스번호
+
+프로세스 확인 (DriverWrapper, CoarseGrainedExecutorBackend 재기동 확인, 프로세스번호 다름)
+$ jps
+
+웹 UI Kill (Running Applications vs. Running Drivers 재기동X)
+$ ./bin/spark-class org.apache.spark.deploy.Client kill <master url> <driver ID>
+------------------------------------------------------------------
+
+
+++++
+
+
+------------------------------------------------------------------
+[LAB] History Server 실행
+------------------------------------------------------------------
+Spark Defaults Conf 설정
+$ cd /danny/spark3/
+$ cp ./conf/spark-defaults.conf.template ./conf/spark-defaults.conf
+$ vi ./conf/spark-defaults.conf
+spark.eventLog.enabled	true
+spark.eventLog.dir		/danny/spark3/history
+spark.history.fs.logDirectory	/danny/spark3/history
+
+$ mkdir -p /danny/spark3/history
+
+History Server 실행
+$ ./sbin/start-history-server.sh
+
+프로세스 확인 (HistoryServer)
+$ jps
+
+웹 UI 확인 (http://spark-master-01:18080) (http://<host>:18080/)
+
+Application 배포
+$ ./bin/spark-submit --master spark://spark-master-01:7177 --class org.apache.spark.examples.SparkPi /danny/spark3/examples/jars/spark-examples_2.12-3.2.1.jar 9000
+
+웹 UI 확인 (completed/incomplete applications vs. Driver UI 실시간)
+Event Log 확인 (/danny/spark3/history)
+------------------------------------------------------------------
+
+
+++++
+
+
+------------------------------------------------------------------
+[LAB] Dynamic Allocation.... #01 (Total 24 cores/24 memory, Worker 1개)
+------------------------------------------------------------------
+Standalone Cluster 실행 (start-worker.sh --cores 24 --memory 24G)
+$ ./sbin/start-master.sh --host spark-master-01 --port 7177 --webui-port 8180
+$ ./sbin/start-worker.sh spark://spark-master-01:7177 --host spark-master-01 --port 12345 --webui-port 8181 --cores 24 --memory 24G --work-dir ./work_dir_4_worker
+
+Spark Shell 실행 (spark.dynamicAllocation.enabled=true, spark.dynamicAllocation.shuffleTracking.enabled=true)
+$ ./bin/spark-shell --master spark://spark-master-01:7177 --conf spark.dynamicAllocation.enabled=true --conf spark.dynamicAllocation.shuffleTracking.enabled=true --executor-cores 2 --executor-memory 2G
+
+scala> val rdd = sc.textFile("/danny/spark3/README.md")  //--초기 할당된 executor 없음....
+scala> rdd.count()  //--executor(2 core, 2g memory) 1개 동적 할당됨.... + 60초(디폴트값) 후 동적 할당된 executor 1개 제거됨(KILLED)....
+scala> val rdd2 = sc.textFile("/danny/data/airline_on_time/1997.csv")  //--할당된 executor 없음....
+scala> rdd2.count()  //--executor(2 core, 2g memory) 9개 동적 할당됨.... + 60초(디폴트값) 후 동적 할당된 executor 9개 제거됨(KILLED)....
+scala> val rdd3 = sc.textFile("/danny/data/airline_on_time/*")  //--할당된 executor 없음....
+scala> rdd3.count()  //--executor(2 core, 2g memory) 12개 동적 할당됨.... + 60초(디폴트값) 후 동적 할당된 executor 12개 제거됨(KILLED)....
+scala> sc.requestExecutors(2)
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+[LAB] Dynamic Allocation.... #02 (Total 24 cores/24 memory, Worker 3개)
+------------------------------------------------------------------
+Standalone Cluster 실행 (SPARK_WORKER_INSTANCES=3 start-worker.sh --cores 8 --memory 8G)
+$ ./sbin/start-master.sh --host spark-master-01 --port 7177 --webui-port 8180
+$ SPARK_WORKER_INSTANCES=3 ./sbin/start-worker.sh spark://spark-master-01:7177 --host spark-master-01 --port 12345 --webui-port 8181 --cores 8 --memory 8G --work-dir ./work_dir_4_worker
+
+Spark Shell 실행 (spark.dynamicAllocation.enabled=true, spark.dynamicAllocation.shuffleTracking.enabled=true, spark.dynamicAllocation.executorIdleTimeout=15s)
+$ ./bin/spark-shell --master spark://spark-master-01:7177 --conf spark.dynamicAllocation.enabled=true --conf spark.dynamicAllocation.shuffleTracking.enabled=true --conf spark.dynamicAllocation.executorIdleTimeout=15s --executor-cores 2 --executor-memory 2G
+
+scala> val rdd = sc.textFile("/danny/spark3/README.md")  //--초기 할당된 executor 없음....
+scala> rdd.count()  //--executor(2 core, 2g memory) 1개 동적 할당됨.... + 15초(설정값) 후 동적 할당된 executor 1개 제거됨(KILLED)....
+scala> val rdd2 = sc.textFile("/danny/data/airline_on_time/1997.csv")  //--할당된 executor 없음....
+scala> rdd2.count()  //--executor(2 core, 2g memory) 9개 동적 할당됨.... + 15초(설정값) 후 동적 할당된 executor 9개 제거됨(KILLED)....
+scala> val rdd3 = sc.textFile("/danny/data/airline_on_time/*")  //--할당된 executor 없음....
+scala> rdd3.count()  //--executor(2 core, 2g memory) 12개 동적 할당됨.... + 15초(설정값) 후 동적 할당된 executor 12개 제거됨(KILLED)....
+scala> sc.requestExecutors(2)
+------------------------------------------------------------------
+
+
+++++
+
+
+------------------------------------------------------------------
+[LAB] Pipelining and Stage Skip
+------------------------------------------------------------------
+Spark Shell 실행 (local[1])
+$ ./bin/spark-shell --master local[1]
+
+scala> val data = sc.parallelize(1 to 10)
+scala> val data1 = data.map{x => println("map1_" + x); x}
+scala> val data2 = data1.map{x => println("map2_" + x); x}
+scala> val data3 = data2.map{x => println("map3_" + x); x}
+scala> data3.getNumPartitions
+scala> val data4 = data3.repartition(10)
+scala> val data5 = data4.map{x => println("map5_" + x); x}
+scala> data5.toDebugString
+
+scala> data5.count
+콘솔 출력 확인(println 출력 순서), 웹 UI 확인(Stage, Shuffle Data)
+
+scala> data5.count 
+콘솔 출력 확인(println 출력 Skip) 및 웹 UI 확인(Stage Skip)
+------------------------------------------------------------------
+
+
+++++
+
+
+------------------------------------------------------------------
+[LAB] Passing Functions to Spark.... #01
+------------------------------------------------------------------
+Driver Side vs Executor Side Variables (Local 멀티쓰레드 환경....)
+
+Spark Shell 실행
+$ ./bin/spark-shell
+
+scala> var counter = 0
+scala> val rdd = sc.parallelize(1 to 10, 1)
+scala> rdd.getNumPartitions
+scala> rdd.foreach{x => counter += x; println(s"counter : $counter");}
+scala> println(s"Counter value : $counter ")
+
+scala> val rdd2 = sc.parallelize(1 to 10, 2)
+scala> rdd2.getNumPartitions
+scala> rdd2.foreach{x => counter += x; println(s"task ${org.apache.spark.TaskContext.get.taskAttemptId} value ${x} counter : $counter");}
+scala> println(s"Counter value : $counter ")
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+[LAB] Passing Functions to Spark.... #02
+------------------------------------------------------------------
+Driver Side vs Executor Side Variables (Cluster 분산 환경....)
+
+Standalone Cluster 실행
+$ ./sbin/start-master.sh
+$ ./sbin/start-worker.sh spark://spark-master-01:7177
+
+Spark Shell 실행
+$ ./bin/spark-shell --master spark://spark-master-01:7177
+
+scala> var counter = 0
+scala> val rdd = sc.parallelize(1 to 10, 1)
+scala> rdd.getNumPartitions
+scala> rdd.foreach{x => counter += x; println(s"counter : $counter");}
+scala> println(s"Counter value : $counter ")
+
+scala> val rdd2 = sc.parallelize(1 to 10, 2)
+scala> rdd2.getNumPartitions
+scala> rdd2.foreach{x => counter += x; println(s"task ${org.apache.spark.TaskContext.get.taskAttemptId} value ${x} counter : $counter");}
+scala> println(s"Counter value : $counter ")
+
+웹 UI 확인 (Executor stdout Log 확인)
+http://spark-master-01:8180
+
+로그파일 확인 (Path : work/<ApplicationID>/<ExecutorID>/stdout)
+$ cd ./work/app-xxxx/0
+$ cat stdout
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+[LAB] Passing Functions to Spark.... #03
+------------------------------------------------------------------
+Passing Driver’s Variables to Tasks
+
+Standalone Cluster 실행
+$ ./sbin/start-master.sh
+$ ./sbin/start-worker.sh spark://spark-master-01:7177
+
+Spark Shell 실행
+$ ./bin/spark-shell --master spark://spark-master-01:7177
+
+scala> val m = Array(1,2,3,4,5)
+scala> val data = sc.makeRDD(1 to 10, 2)
+scala> val data1 = data.map{r => println(s"map #1 m.hashCode ${m.hashCode} taskAttemptId ${org.apache.spark.TaskContext.get.taskAttemptId}"); r}
+scala> val data2 = data1.map{r => println(s"map #2 m.hashCode ${m.hashCode} taskAttemptId ${org.apache.spark.TaskContext.get.taskAttemptId}"); r}
+scala> data2.getNumPartitions  //--파티션 개수만큼 Task 생성
+scala> m.hashCode
+scala> data2.count  //--Action 실행 #1
+scala> data2.count  //--Action 실행 #2
+
+웹 UI 확인 (Stage 확인, Executor stdout Log 확인)
+ : Task별로 변수 카피됨 (드라이버, Task별 변수 해시값 다름 확인)
+ : 동일 Stage의 오퍼레이션은 동일 Task (다른 map에서 동일 해시값)
+ : 액션 실행 때 마다 변수 카피 반복됨
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+[LAB] Passing Functions to Spark.... #04
+------------------------------------------------------------------
+Passing Driver’s Variables to Tasks
+
+Standalone Cluster 실행
+$ ./sbin/start-master.sh
+$ ./sbin/start-worker.sh spark://spark-master-01:7177
+
+Spark Shell 실행
+$ ./bin/spark-shell --master spark://spark-master-01:7177
+
+scala> var count = 0
+scala> val rdd = sc.textFile("README.md")
+scala> rdd.partitions.size
+scala> rdd.foreach { n =>
+count = count + 1
+val tc = org.apache.spark.TaskContext.get
+println(s"""|-------------------
+|partitionId: ${tc.partitionId}
+|element: ${n}
+|stageId: ${tc.stageId}
+|attemptNum: ${tc.attemptNumber}
+|taskAttemptId: ${tc.taskAttemptId}
+|count: ${count}
+|-------------------""".stripMargin)
+}
+scala> println(count)
+
+웹 UI 확인 (Task별 Records 개수 확인, Executor stdout 확인 -> count 값)
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+[LAB] Passing Functions to Spark.... #05
+------------------------------------------------------------------
+Serialization Exception....
+scala> class Customer(val id: String)
+scala> val n = new Customer("danny")  //--not Serializable....
+scala> val rdd = sc.range(1, 10, numSlices=3)
+scala> rdd.map{r => println(s"n.hashCode ${n.hashCode} task ${org.apache.spark.TaskContext.get.taskAttemptId}"); r}.count  //--Task not serializable Exception....
+
+Extends Serializable....
+scala> class Customer(val id: String) extends Serializable
+scala> val n = new Customer("danny")  //--Serializable....
+scala> val rdd = sc.range(1, 10, numSlices=3)
+scala> rdd.map{r => println(s"n.hashCode ${n.hashCode} task ${org.apache.spark.TaskContext.get.taskAttemptId}"); r}.count  //--OK!!!!
+------------------------------------------------------------------
+
+
+++++
+
+
+------------------------------------------------------------------
+[LAB] RDD Persistence
+------------------------------------------------------------------
+scala> import org.apache.spark.storage.StorageLevel
+scala> val rdd = sc.makeRDD(1 to 10000, 10)
+scala> rdd.setName("persistedRDD")
+scala> rdd.persist(StorageLevel.DISK_ONLY)
+scala> rdd.getStorageLevel
+
+scala> rdd.count
+웹 UI 확인 (Storage 항목에서 캐시된 RDD 확인)
+
+scala> rdd.unpersist()
+웹 UI 확인 (Storage 항목에서 삭제된 RDD 확인)
+------------------------------------------------------------------
+
+
+++++
+
+
+------------------------------------------------------------------
+[LAB] Whole File-Based RDDs
+------------------------------------------------------------------
+JSON 파일 생성
+$ cd /danny/spark3
+
+$ vi file1.json
+{
+  "firstName":"Fred",
+  "lastName":"Flintstone",
+  "userId":123
+}
+
+$ vi file2.json
+{
+  "firstName":"Barney",
+  "lastName":"Rubble",
+  "userId":234
+}
+
+Spark Shell 실행
+$ ./bin/spark-shell
+
+RDD(w/ JSON Parser).... 
+scala> import scala.util.parsing.json.JSON
+scala> val myRDD = sc.wholeTextFiles("./*.json")  //--sc.wholeTextFiles
+scala> myRDD.collect.foreach(println)
+scala> val myRDD2 = myRDD.map(pair => JSON.parseFull(pair._2).get.asInstanceOf[Map[String,Any]])
+scala> val arrMap = myRDD2.take(2)
+scala> arrMap.foreach(x => println(x.getOrElse("firstName",null)))
+Fred
+Barney
+
+cf) Spark SQL(JSON DataFrameReader)....
+scala> val myDF = spark.read.option("multiLine", true).json("./*.json")  //--DataFrameReader.option("multiLine", true)
+scala> myDF.printSchema()
+scala> myDF.select("firstName").show()
++---------+
+|firstName|
++---------+
+|     Fred|
+|   Barney|
++---------+
+------------------------------------------------------------------
+
+
+++++
+
+
+------------------------------------------------------------------
+Broadcast.... #01
+------------------------------------------------------------------
+Standalone Cluster 실행 (SPARK_WORKER_INSTANCES=3 start-worker.sh --cores 8 --memory 8G)
+$ ./sbin/start-master.sh --host spark-master-01 --port 7177 --webui-port 8180
+$ SPARK_WORKER_INSTANCES=3 ./sbin/start-worker.sh spark://spark-master-01:7177 --host spark-master-01 --port 12345 --webui-port 8181 --cores 8 --memory 8G --work-dir ./work_dir_4_worker
+
+Spark Shell 실행
+$ ./bin/spark-shell --master spark://spark-master-01:7177 --executor-cores 2 --executor-memory 2G --total-executor-cores 6
+
+scala> val m = Array(1, 2, 3)
+scala> val broadcastVar = sc.broadcast(m)
+scala> broadcastVar.value
+scala> broadcastVar.value.hashCode
+scala> m.hashCode
+scala> val rdd = sc.makeRDD(1 to 100, 5)
+scala> val rdd1 = rdd .map{r => println(s"map #1 broadcastVar.value.hashCode ${broadcastVar.value.hashCode} taskAttemptId ${org.apache.spark.TaskContext.get.taskAttemptId} stageId ${org.apache.spark.TaskContext.get.stageId}"); r}
+scala> val rdd2 = rdd1.repartition(10)
+scala> val rdd3 = rdd2.map{r => println(s"map #2 broadcastVar.value.hashCode ${broadcastVar.value.hashCode} taskAttemptId ${org.apache.spark.TaskContext.get.taskAttemptId} stageId ${org.apache.spark.TaskContext.get.stageId}"); r}
+scala> rdd3.count
+
+웹 UI 확인 (Stage 확인, Executor stdout Log 확인)
+ : 모든 Stage, 모든 Task의 broadcast 변수 해시값 같음 확인
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+Broadcast.... #02 (w/ driver's variable vs. broadcast....)
+------------------------------------------------------------------
+Standalone Cluster 실행 (SPARK_WORKER_INSTANCES=3 start-worker.sh --cores 8 --memory 8G)
+$ ./sbin/start-master.sh --host spark-master-01 --port 7177 --webui-port 8180
+$ SPARK_WORKER_INSTANCES=3 ./sbin/start-worker.sh spark://spark-master-01:7177 --host spark-master-01 --port 12345 --webui-port 8181 --cores 8 --memory 8G --work-dir ./work_dir_4_worker
+
+Spark Shell 실행
+$ ./bin/spark-shell --master spark://spark-master-01:7177 --executor-cores 2 --executor-memory 2G --total-executor-cores 6
+
+scala> val data = Array(1, 2, 3)
+scala> val bcData = sc.broadcast(data)
+scala> bcData.value
+scala> bcData.value.hashCode
+scala> data.hashCode
+
+scala> val rdd = sc.makeRDD(1 to 10, 5)
+scala> rdd.getNumPartitions
+scala> val rdd1 = rdd.map{r => 
+  println(s"""
+    map #1 data ${data.toList} data.hashCode ${data.hashCode} taskAttemptId ${org.apache.spark.TaskContext.get.taskAttemptId} stageId ${org.apache.spark.TaskContext.get.stageId}
+    map #1 bcData ${bcData.value.toList} bcData.hashCode ${bcData.value.hashCode} taskAttemptId ${org.apache.spark.TaskContext.get.taskAttemptId} stageId ${org.apache.spark.TaskContext.get.stageId}
+  """)
+  r
+}
+
+scala> val rdd2 = rdd1.repartition(10)
+scala> rdd2.getNumPartitions
+scala> val rdd3 = rdd2.map{r => 
+  println(s"""
+    map #2 data ${data.toList} data.hashCode ${data.hashCode} taskAttemptId ${org.apache.spark.TaskContext.get.taskAttemptId} stageId ${org.apache.spark.TaskContext.get.stageId}
+    map #2 bcData ${bcData.value.toList} bcData.hashCode ${bcData.value.hashCode} taskAttemptId ${org.apache.spark.TaskContext.get.taskAttemptId} stageId ${org.apache.spark.TaskContext.get.stageId}
+  """)
+  r
+}
+
+scala> rdd3.count
+scala> rdd3.collect
+
+웹 UI 확인 (Stage 확인, Executor stdout Log 확인)
+ : 모든 Stage, 모든 Task의 Broadcast 변수 해시값 같음 확인
+ : 반면, Driver 변수는 Task 별로 Copy 되어 해시값이 서로 다름 확인
+------------------------------------------------------------------
+
+
+++++
+
+
+------------------------------------------------------------------
+Accumulators
+------------------------------------------------------------------
+scala> val accum = sc.longAccumulator("My Accumulator")
+scala> sc.parallelize(Array(1, 2, 3, 4)).repartition(10).foreach(x => accum.add(x))  //--한번이 아니라 여러 번 반복 한다면....
+scala> accum.value  //--계속 누적....
+scala> sc.parallelize(Array(1, 2, 3, 4)).repartition(10).foreach(x => accum.add(x))
+scala> accum.value
+
+scala> val rdd = sc.range(1, 5)
+scala> rdd.foreach(accum.add(_))
+scala> accum.value
+scala> rdd.foreach{x => accum.add(x); accum.add(x);}
+scala> accum.value
+
+scala> val accum2 = sc.collectionAccumulator[Long]("My Accumlator2")
+scala> rdd.foreach{x => accum.add(x); accum2.add(x);}
+scala> accum.value
+scala> accum2.value
+
+웹 UI 확인 (Accumulators 확인, Task별 Accumulators 확인)
+------------------------------------------------------------------
+
+
+++++
+
+
+------------------------------------------------------------------
+RDD Map-Side Join(Replicated Join or Broadcast Hash Join).... #01
+------------------------------------------------------------------
+Map-Side Join(replicated join or broadcast hash join) in Spark with Broadcast Variables....
+Join a large table (fact) with relatively small tables (dimensions).... 
+Avoid shuffling....
+
+Standalone Cluster 실행
+$ ./sbin/start-master.sh
+$ ./sbin/start-worker.sh spark://spark-master-01:7177
+
+Spark Shell 실행
+$ ./bin/spark-shell --master spark://spark-master-01:7177
+
+- Fact table (Large table)....
+scala> val flights = sc.parallelize(List(
+  ("SEA", "JFK", "DL", "418",  "7:00"),
+  ("SFO", "LAX", "AA", "1250", "7:05"),
+  ("SFO", "JFK", "VX", "12",   "7:05"),
+  ("JFK", "LAX", "DL", "424",  "7:10"),
+  ("LAX", "SEA", "DL", "5737", "7:10")))
+
+- Dimension table #1 (Small table)....
+scala> val airports = sc.makeRDD(List(
+  ("JFK", "John F. Kennedy International Airport", "New York", "NY"),
+  ("LAX", "Los Angeles International Airport", "Los Angeles", "CA"),
+  ("SEA", "Seattle-Tacoma International Airport", "Seattle", "WA"),
+  ("SFO", "San Francisco International Airport", "San Francisco", "CA")))
+
+- Dimension table #2 (Small table)....
+scala> val airlines = sc.parallelize(List(
+  ("AA", "American Airlines"), 
+  ("DL", "Delta Airlines"), 
+  ("VX", "Virgin America")))
+
+- The fact table be very large, while dimension tables are often quite small.
+  Let’s download the dimension tables to the Spark driver, create maps and broadcast them to each worker node....
+scala> val airportsMap = sc.broadcast(airports.map{case (a, b, c, d) => (a, c)}.collectAsMap)
+scala> val airlinesMap = sc.broadcast(airlines.collectAsMap)
+
+- Now run the map-side join....
+  This approach allows us not to shuffle the fact table, and to get quite good join performance....
+scala> flights.map{case (a, b, c, d, e) => (
+  airportsMap.value.get(a).get, 
+  airportsMap.value.get(b).get, 
+  airlinesMap.value.get(c).get, 
+  d, 
+  e)}.collect.foreach(println)
+(Seattle,New York,Delta Airlines,418,7:00)
+(San Francisco,Los Angeles,American Airlines,1250,7:05)
+(San Francisco,New York,Virgin America,12,7:05)
+(New York,Los Angeles,Delta Airlines,424,7:10)
+(Los Angeles,Seattle,Delta Airlines,5737,7:10)
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+cf.) RDD Join(Shuffle join).... #01
+------------------------------------------------------------------
+RDD Join(Shuffle join)
+
+- Join #1
+scala> val flightsJoin = flights.keyBy(_._1).join(airports.keyBy(_._1))
+scala> flightsJoin.collect.foreach(println)
+scala> val flights2 = flightsJoin.map(x => (x._2._2._3, x._2._1._2, x._2._1._3, x._2._1._4, x._2._1._5))
+scala> flights2.collect.foreach(println)
+(Los Angeles,SEA,DL,5737,7:10)
+(San Francisco,LAX,AA,1250,7:05)
+(San Francisco,JFK,VX,12,7:05)
+(Seattle,JFK,DL,418,7:00)
+(New York,LAX,DL,424,7:10)
+
+- Join #2
+scala> val flightsJoin2 = flights2.keyBy(_._2).join(airports.keyBy(_._1))
+scala> flightsJoin2.collect.foreach(println)
+scala> val flights3 = flightsJoin2.map(x => (x._2._1._1, x._2._2._3, x._2._1._3, x._2._1._4, x._2._1._5))
+scala> flights3.collect.foreach(println)
+(San Francisco,Los Angeles,AA,1250,7:05)
+(New York,Los Angeles,DL,424,7:10)
+(Los Angeles,Seattle,DL,5737,7:10)
+(San Francisco,New York,VX,12,7:05)
+(Seattle,New York,DL,418,7:00)
+
+- Join #3
+scala> val flightsJoin3 = flights3.keyBy(_._3).join(airlines.keyBy(_._1))
+scala> flightsJoin3.collect.foreach(println)
+scala> val flights4 = flightsJoin3.map(x => (x._2._1._1, x._2._1._2, x._2._2._2, x._2._1._4, x._2._1._5))
+scala> flights4.collect.foreach(println)
+(New York,Los Angeles,Delta Airlines,424,7:10)
+(Los Angeles,Seattle,Delta Airlines,5737,7:10)
+(Seattle,New York,Delta Airlines,418,7:00)
+(San Francisco,Los Angeles,American Airlines,1250,7:05)
+(San Francisco,New York,Virgin America,12,7:05)
+
+- Join Total(#1 ~ #3)
+scala> flights.
+  keyBy(_._1).join(airports.keyBy(_._1)).
+  map(x => (x._2._2._3, x._2._1._2, x._2._1._3, x._2._1._4, x._2._1._5)).
+  keyBy(_._2).join(airports.keyBy(_._1)).
+  map(x => (x._2._1._1, x._2._2._3, x._2._1._3, x._2._1._4, x._2._1._5)).
+  keyBy(_._3).join(airlines.keyBy(_._1)).
+  map(x => (x._2._1._1, x._2._1._2, x._2._2._2, x._2._1._4, x._2._1._5)).
+  collect.foreach(println)
+(New York,Los Angeles,Delta Airlines,424,7:10)
+(Los Angeles,Seattle,Delta Airlines,5737,7:10)
+(Seattle,New York,Delta Airlines,418,7:00)
+(San Francisco,Los Angeles,American Airlines,1250,7:05)
+(San Francisco,New York,Virgin America,12,7:05)
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+cf.) Spark SQL Join(Broadcast Hash Join vs. Sort Merge Join).... #01
+------------------------------------------------------------------
+Spark SQL Join(Broadcast Hash Join)
+
+- RDD -->> DF (by RDD.toDF....)
+scala> val flightsDF = flights.toDF("origin", "destination", "airline", "flight_num", "flight_time")
+scala> val airportsDF = airports.toDF("code", "name", "city", "state")
+scala> val airlinesDF = airlines.toDF("code", "name")
+
+- Broadcast Hash Join.... 웹 UI 확인 (SQL탭 > Completed Queries > Description 링크 클릭)
+scala> flightsDF.as("a").
+  join(broadcast(airportsDF.as("b")), $"a.origin" === $"b.code").
+  join(broadcast(airportsDF.as("c")), $"a.destination" === $"c.code").
+  join(broadcast(airlinesDF.as("d")), $"a.airline" === $"d.code").
+  select($"b.city".as("origin"), $"c.city".as("destination"), $"d.name".as("airline"), $"a.flight_num", $"a.flight_time").
+  show()
++-------------+-----------+-----------------+----------+-----------+
+|       origin|destination|          airline|flight_num|flight_time|
++-------------+-----------+-----------------+----------+-----------+
+|      Seattle|   New York|   Delta Airlines|       418|       7:00|
+|San Francisco|Los Angeles|American Airlines|      1250|       7:05|
+|San Francisco|   New York|   Virgin America|        12|       7:05|
+|     New York|Los Angeles|   Delta Airlines|       424|       7:10|
+|  Los Angeles|    Seattle|   Delta Airlines|      5737|       7:10|
++-------------+-----------+-----------------+----------+-----------+
+
+- Sort Merge Join.... 웹 UI 확인 (SQL탭 > Completed Queries > Description 링크 클릭)
+scala> flightsDF.as("a").
+  join(airportsDF.as("b"), $"a.origin" === $"b.code").
+  join(airportsDF.as("c"), $"a.destination" === $"c.code").
+  join(airlinesDF.as("d"), $"a.airline" === $"d.code").
+  select($"b.city".as("origin"), $"c.city".as("destination"), $"d.name".as("airline"), $"a.flight_num", $"a.flight_time").
+  show()
+------------------------------------------------------------------
+
+
+++++
+
+
+------------------------------------------------------------------
+RDD Map-Side Join(Replicated Join or Broadcast Hash Join).... #02
+------------------------------------------------------------------
+Map-Side Join(replicated join or broadcast join) in Spark with Broadcast Variables....
+Join a large table (fact) with relatively small tables (dimensions).... 
+Avoid shuffling....
+
+* (옵션) data download.... (airports.csv, carriers.csv)
+$ mkdir -p /danny/data/airline_on_time_ext
+$ wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/XTPZZY -O /danny/data/airline_on_time_ext/airports.csv
+$ wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/3NOQ6Q -O /danny/data/airline_on_time_ext/carriers.csv
+
+Standalone Cluster 실행
+$ ./sbin/start-master.sh
+$ ./sbin/start-worker.sh spark://spark-master-01:7177
+
+Spark Shell 실행
+$ ./bin/spark-shell --master spark://spark-master-01:7177
+
+- Fact table (Large table)....
+scala> val flights_air = sc.textFile("/danny/data/airline_on_time/2008.csv").
+  filter(!_.startsWith("Year")).
+  map{x =>
+    val arr = x.split(",")
+    val origin = arr(16)
+    val dest = arr(17)
+    val uniquecarrier = arr(8)
+    val flightnum = arr(9)
+    val deptime = arr(4)
+    (origin, dest, uniquecarrier, flightnum, deptime)
+  }
+
+- Dimension table #1 (Small table)....
+scala> val airports_air = sc.textFile("/danny/data/airline_on_time_ext/airports.csv").
+  map(_.replaceAll("\"", "")).
+  filter(!_.startsWith("iata")).
+  map{x =>
+    val arr = x.split(",")
+    val iata = arr(0)
+    val airport = arr(1)
+    val city = arr(2)
+    val state = arr(3)
+    (iata, airport, city, state)
+  }
+
+- Dimension table #2 (Small table)....
+scala> val airlines_air = sc.textFile("/danny/data/airline_on_time_ext/carriers.csv").
+  map(_.replaceAll("\"", "")).
+  filter(!_.startsWith("Code")).
+  map{x =>
+    val arr = x.split(",")
+    val code = arr(0)
+    val description = arr(1)
+    (code, description)
+  }
+
+- The fact table be very large, while dimension tables are often quite small.
+  Let’s download the dimension tables to the Spark driver, create maps and broadcast them to each worker node....
+scala> val airportsMap_air = sc.broadcast(airports_air.map{case (a, b, c, d) => (a, c)}.collectAsMap)
+scala> val airlinesMap_air = sc.broadcast(airlines_air.collectAsMap)
+
+- Now run the map-side join....
+  This approach allows us not to shuffle the fact table, and to get quite good join performance....
+scala> flights_air.map{case (a, b, c, d, e) => (
+  airportsMap_air.value.get(a).get, 
+  airportsMap_air.value.get(b).get, 
+  airlinesMap_air.value.get(c).get, 
+  d, 
+  e)}.count()
+2389217
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+cf.) RDD Join(Shuffle join).... #02
+------------------------------------------------------------------
+RDD Join(Shuffle join)
+
+- Join #1
+scala> val flightsJoin_air = flights_air.keyBy(_._1).join(airports_air.keyBy(_._1))
+scala> flightsJoin_air.take(5).foreach(println)
+scala> val flights2_air = flightsJoin_air.map(x => (x._2._2._3, x._2._1._2, x._2._1._3, x._2._1._4, x._2._1._5))
+scala> flights2_air.take(5).foreach(println)
+(Bismarck,DEN,OO,6541,1324)
+(Bismarck,DEN,OO,6553,1607)
+(Bismarck,DEN,OO,6635,632)
+(Bismarck,DEN,OO,6678,1916)
+(Bismarck,DEN,OO,6541,1257)
+
+- Join #2
+scala> val flightsJoin2_air = flights2_air.keyBy(_._2).join(airports_air.keyBy(_._1))
+scala> flightsJoin2_air.take(5).foreach(println)
+scala> val flights3_air = flightsJoin2_air.map(x => (x._2._1._1, x._2._2._3, x._2._1._3, x._2._1._4, x._2._1._5))
+scala> flights3_air.take(5).foreach(println)
+(Minneapolis,Bismarck,NW,439,2149)
+(Minneapolis,Bismarck,NW,439,2220)
+(Minneapolis,Bismarck,NW,439,2150)
+(Minneapolis,Bismarck,NW,439,2153)
+(Minneapolis,Bismarck,NW,439,2148)
+
+- Join #3
+scala> val flightsJoin3_air = flights3_air.keyBy(_._3).join(airlines_air.keyBy(_._1))
+scala> flightsJoin3_air.take(5).foreach(println)
+scala> val flights4_air = flightsJoin3_air.map(x => (x._2._1._1, x._2._1._2, x._2._2._2, x._2._1._4, x._2._1._5))
+scala> flights4_air.take(5).foreach(println)
+(Houston,Eagle,Continental Air Lines Inc.,1480,1119)
+(Houston,Eagle,Continental Air Lines Inc.,1480,1032)
+(Houston,Eagle,Continental Air Lines Inc.,1480,1116)
+(Houston,Eagle,Continental Air Lines Inc.,1480,1120)
+(Houston,Eagle,Continental Air Lines Inc.,1480,1118)
+
+- Join Total(#1 ~ #3)
+scala> flights_air.
+  keyBy(_._1).join(airports_air.keyBy(_._1)).
+  map(x => (x._2._2._3, x._2._1._2, x._2._1._3, x._2._1._4, x._2._1._5)).
+  keyBy(_._2).join(airports_air.keyBy(_._1)).
+  map(x => (x._2._1._1, x._2._2._3, x._2._1._3, x._2._1._4, x._2._1._5)).
+  keyBy(_._3).join(airlines_air.keyBy(_._1)).
+  map(x => (x._2._1._1, x._2._1._2, x._2._2._2, x._2._1._4, x._2._1._5)).
+  count()
+2389217
+------------------------------------------------------------------
+
+
+------------------------------------------------------------------
+cf.) Spark SQL Join(Broadcast Hash Join vs. Sort Merge Join).... #02
+------------------------------------------------------------------
+Spark SQL Join(Broadcast Hash Join)
+
+- RDD -->> DF (by RDD.toDF....)
+scala> val flightsDF_air = flights_air.toDF("origin", "destination", "airline", "flight_num", "flight_time")
+scala> val airportsDF_air = airports_air.toDF("code", "name", "city", "state")
+scala> val airlinesDF_air = airlines_air.toDF("code", "name")
+
+- Broadcast Hash Join.... 웹 UI 확인 (SQL탭 > Completed Queries > Description 링크 클릭)
+scala> flightsDF_air.as("a").
+  join(broadcast(airportsDF_air.as("b")), $"a.origin" === $"b.code").
+  join(broadcast(airportsDF_air.as("c")), $"a.destination" === $"c.code").
+  join(broadcast(airlinesDF_air.as("d")), $"a.airline" === $"d.code").
+  select($"b.city".as("origin"), $"c.city".as("destination"), $"d.name".as("airline"), $"a.flight_num", $"a.flight_time").
+  show(false)
++-------+-----------+----------------------+----------+-----------+
+|origin |destination|airline               |flight_num|flight_time|
++-------+-----------+----------------------+----------+-----------+
+|Houston|Little Rock|Southwest Airlines Co.|588       |1343       |
+|Houston|Midland    |Southwest Airlines Co.|1343      |1125       |
+|Houston|Midland    |Southwest Airlines Co.|3841      |2009       |
+|Houston|Orlando    |Southwest Airlines Co.|3         |903        |
+|Houston|Orlando    |Southwest Airlines Co.|25        |1423       |
+|Houston|Orlando    |Southwest Airlines Co.|51        |2024       |
+|Houston|Orlando    |Southwest Airlines Co.|940       |1753       |
+|Houston|Orlando    |Southwest Airlines Co.|2621      |622        |
+|Houston|Chicago    |Southwest Airlines Co.|389       |1944       |
+|Houston|Chicago    |Southwest Airlines Co.|519       |1453       |
+|Houston|Chicago    |Southwest Airlines Co.|894       |2030       |
+|Houston|Chicago    |Southwest Airlines Co.|969       |708        |
+|Houston|Chicago    |Southwest Airlines Co.|2174      |1749       |
+|Houston|Chicago    |Southwest Airlines Co.|2445      |1217       |
+|Houston|Chicago    |Southwest Airlines Co.|2974      |954        |
+|Houston|New Orleans|Southwest Airlines Co.|41        |1758       |
+|Houston|New Orleans|Southwest Airlines Co.|78        |2210       |
+|Houston|New Orleans|Southwest Airlines Co.|311       |740        |
+|Houston|New Orleans|Southwest Airlines Co.|521       |1011       |
+|Houston|New Orleans|Southwest Airlines Co.|714       |1612       |
++-------+-----------+----------------------+----------+-----------+
+
+* (옵션) AQE On/Off....
+scala> spark.conf.get("spark.sql.adaptive.enabled")
+scala> spark.conf.set("spark.sql.adaptive.enabled", false)
+
+- Sort Merge Join.... 웹 UI 확인 (SQL탭 > Completed Queries > Description 링크 클릭)
+scala> flightsDF_air.as("a").
+  join(airportsDF_air.as("b"), $"a.origin" === $"b.code").
+  join(airportsDF_air.as("c"), $"a.destination" === $"c.code").
+  join(airlinesDF_air.as("d"), $"a.airline" === $"d.code").
+  select($"b.city".as("origin"), $"c.city".as("destination"), $"d.name".as("airline"), $"a.flight_num", $"a.flight_time").
+  show(false)
+------------------------------------------------------------------
+
+
+
+

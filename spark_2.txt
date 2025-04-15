@@ -1,0 +1,89 @@
+
+[ Chapter.02 Apache Spark 기초-21. Spark History Server 구성 (HistoryServer 시작/종료/테스트).... ]
+
+-------------------------------------------------------------------------------
+- LogDirectory 설정.... (spark-defaults.conf) (for HistoryServer) (on spark-master-01)
+-------------------------------------------------------------------------------
+//--spark-defaults.conf 설정.... (for HistoryServer)
+$ cd /danny/spark3/conf
+$ cp spark-defaults.conf.template spark-defaults.conf
+$ vi spark-defaults.conf
+spark.history.fs.logDirectory file:///danny/spark3/history
+
+//--log dir 생성....
+$ mkdir -p /danny/spark3/history
+
+
+
+
+-------------------------------------------------------------------------------
+- Spark History Server 시작.... (on spark-master-01)
+-------------------------------------------------------------------------------
+//--History Server 시작....
+$ /danny/spark3/sbin/start-history-server.sh
+
+//--History Server 프로세스 확인....
+$ jps
+HistoryServer
+
+//--Log 확인.... -> 웹UI URL 확인....
+$ vi /danny/spark3/logs/spark-spark-org.apache.spark.deploy.history.HistoryServer-1-spark-master-01.out
+
+//--History Server 웹UI 확인.... (on 크롬 브라우저) (필요시 방화벽 오픈)
+http://spark-master-01:18080
+Show incomplete applications 링크 클릭....
+Back to completed applications 링크 클릭....
+
+//--History Server 종료.... (필요시)
+$ /danny/spark3/sbin/stop-history-server.sh
+
+
+
+
+-------------------------------------------------------------------------------
+- LogDirectory 설정.... (spark-defaults.conf) (for Spark App) (on spark-master-01)
+-------------------------------------------------------------------------------
+//--spark-defaults.conf 설정.... (for Spark App)
+$ vi /danny/spark3/conf/spark-defaults.conf
+spark.eventLog.enabled true
+spark.eventLog.dir file:///danny/spark3/history
+
+//--spark-shell 실행 후 Driver 웹UI와 비교....
+$ cd /danny/spark3
+$ ./bin/spark-shell
+scala> sc.uiWebUrl
+
+//-- history 디렉토리 보기 (진행중일때 -> .inprogress 확장자) (다른 터미널 하나 더 열어서)
+$ cd /danny/spark3/history
+$ ls -al
+
+//--spark-shell 코드 작성 및 실행.... (Word Count)
+scala> val rdd = sc.textFile("README.md")
+scala> val rdd_word = rdd.flatMap(line => line.split(" "))
+scala> val rdd_tuple = rdd_word.map(word => (word, 1))
+scala> val rdd_wordcount = rdd_tuple.reduceByKey((v1, v2) => v1 + v2)
+scala> val arr_wordcount = rdd_wordcount.collect()
+scala> arr_wordcount.take(10).foreach(tuple => println(tuple))
+scala> :quit (-> 종료되면 history의 .inprogress 확장자 사라짐)
+
+//--pyspark 실행.... (Word Count)
+$ cd /danny/spark3
+$ ./bin/pyspark
+>>> rdd = sc.textFile("README.md")
+>>> rdd_word = rdd.flatMap(lambda line: line.split(" "))
+>>> rdd_tuple = rdd_word.map(lambda word: (word, 1))
+>>> rdd_wordcount = rdd_tuple.reduceByKey(lambda v1,v2: v1 + v2)
+>>> arr_wordcount = rdd_wordcount.collect()
+>>> for wc in arr_wordcount[:10]:
+...     print(wc)
+>>> exit() (-> 종료되면 history의 .inprogress 확장자 사라짐)
+
+//--spark-sql 실행.... (Word Count)
+$ cd /danny/spark3
+$ ./bin/spark-sql
+spark-sql> select word, count(*) from (select explode(split(*, ' ')) as word from text.`README.md`) group by word limit 10;
+spark-sql> exit; (-> 종료되면 history의 .inprogress 확장자 사라짐)
+
+
+
+

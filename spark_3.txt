@@ -1,0 +1,125 @@
+
+[ Chapter.02 Apache Spark 기초-23. Hadoop 클러스터 구성 (다운로드, 설정).... ]
+
+-------------------------------------------------------------------------------
+- Hadoop Tarball 다운로드.... (hadoop 3.3.3 binary) (on spark-master-01)
+-------------------------------------------------------------------------------
+//--다운로드 경로 확인.... (다운로드 링크 복사)
+https://hadoop.apache.org/releases.html
+또는
+https://archive.apache.org/dist/hadoop/common/
+
+//--다운로드 + 압축해제 + 디렉토리 이름 변경....
+$ cd /danny
+$ wget https://archive.apache.org/dist/hadoop/common/hadoop-3.3.3/hadoop-3.3.3.tar.gz
+$ tar xvfz hadoop-3.3.3.tar.gz
+$ mv hadoop-3.3.3 hadoop3
+
+
+
+
+-------------------------------------------------------------------------------
+- hadoop-env.sh 설정.... (on spark-master-01)
+-------------------------------------------------------------------------------
+$ vi /danny/hadoop3/etc/hadoop/hadoop-env.sh
+export JAVA_HOME=/danny/jdk8
+
+
+
+
+-------------------------------------------------------------------------------
+- core-site.xml 설정.... (on spark-master-01)
+-------------------------------------------------------------------------------
+$ vi /danny/hadoop3/etc/hadoop/core-site.xml
+<configuration>
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://spark-master-01:9000/</value>
+    </property>
+</configuration>
+
+
+
+
+-------------------------------------------------------------------------------
+- hdfs-site.xml 설정.... (on spark-master-01)
+-------------------------------------------------------------------------------
+$ vi /danny/hadoop3/etc/hadoop/hdfs-site.xml
+<configuration>
+    <property>
+        <name>dfs.namenode.name.dir</name>
+        <value>file:///danny/hadoop3/dfs/name</value>
+    </property>
+    <property>
+        <name>dfs.datanode.data.dir</name>
+        <value>file:///danny/hadoop3/dfs/data</value>
+    </property>
+    <property>
+        <name>dfs.namenode.checkpoint.dir</name>
+        <value>file:///danny/hadoop3/dfs/namesecondary</value>
+    </property>
+</configuration>
+
+
+
+
+-------------------------------------------------------------------------------
+- yarn-site.xml 설정.... (on spark-master-01)
+-------------------------------------------------------------------------------
+$ vi /danny/hadoop3/etc/hadoop/yarn-site.xml
+<configuration>
+    <property>
+        <name>yarn.resourcemanager.hostname</name>
+        <value>spark-master-01</value>
+    </property>
+    <!-- port 변경이 필요할 경우.... (resourcemanager....) --> <!-- Stop attacks: get-shell(YARN) etc. -->
+    <property>
+        <name>yarn.resourcemanager.webapp.address</name>
+        <!--
+        <value>spark-master-01:8088</value>
+        -->
+        <value>spark-master-01:8188</value>
+    </property>
+</configuration>
+
+
+
+
+-------------------------------------------------------------------------------
+- workers 설정.... (on spark-master-01)
+-------------------------------------------------------------------------------
+$ vi /danny/hadoop3/etc/hadoop/workers
+spark-worker-01
+spark-worker-02
+spark-worker-03
+
+
+
+
+-------------------------------------------------------------------------------
+- copy 'jdk8', 'hadoop3' to spark-worker-01 ~ 03.... (on spark-master-01)
+-------------------------------------------------------------------------------
+//--copy 'jdk8' to spark-worker-01 ~ 03....
+$ scp -r /danny/jdk8 spark@spark-worker-01:/danny/
+$ scp -r /danny/jdk8 spark@spark-worker-02:/danny/
+$ scp -r /danny/jdk8 spark@spark-worker-03:/danny/
+
+//--copy 'hadoop3' to spark-worker-01 ~ 03....
+$ scp -r /danny/hadoop3 spark@spark-worker-01:/danny/
+$ scp -r /danny/hadoop3 spark@spark-worker-02:/danny/
+$ scp -r /danny/hadoop3 spark@spark-worker-03:/danny/
+
+
+
+
+-------------------------------------------------------------------------------
+- (옵션) copy '.profile' to spark-worker-01 ~ 03.... (on spark-master-01)
+-------------------------------------------------------------------------------
+//--copy '.profile' to spark-worker-01 ~ 03.... -> JPS 명령어에 대한 PATH 등록....
+$ scp -r ~/.profile spark@spark-worker-01:~/
+$ scp -r ~/.profile spark@spark-worker-02:~/
+$ scp -r ~/.profile spark@spark-worker-03:~/
+
+
+
+

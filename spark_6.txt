@@ -1,0 +1,70 @@
+
+[ Chapter.02 Apache Spark 기초-26. Hadoop 클러스터 구성 (Data 다운로드 및 PUT).... ]
+
+-------------------------------------------------------------------------------
+- Airline On Time Data 다운로드, 압축해제.... (on spark-master-01)
+-------------------------------------------------------------------------------
+//--다운로드 사이트....
+https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/HG7NV7
+
+//--디렉토리 생성.... (/danny/data 하위....)
+$ mkdir -p /danny/data/airline_on_time
+
+//--다운로드.... (명령어 한번에 실행.... w/o $기호)
+wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/RUGDRW -O /danny/data/airline_on_time/1997.csv.bz2
+wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/H07RX8 -O /danny/data/airline_on_time/1998.csv.bz2
+wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/IP6BL3 -O /danny/data/airline_on_time/1999.csv.bz2
+wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/YGU3TD -O /danny/data/airline_on_time/2000.csv.bz2
+wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/CI5CEM -O /danny/data/airline_on_time/2001.csv.bz2
+wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/OWJXH3 -O /danny/data/airline_on_time/2002.csv.bz2
+wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/KM2QOA -O /danny/data/airline_on_time/2003.csv.bz2
+wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/CCAZGT -O /danny/data/airline_on_time/2004.csv.bz2
+wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/JTFT25 -O /danny/data/airline_on_time/2005.csv.bz2
+wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/EPIFFT -O /danny/data/airline_on_time/2006.csv.bz2
+wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/2BHLWK -O /danny/data/airline_on_time/2007.csv.bz2
+wget https://dataverse.harvard.edu/api/access/datafile/:persistentId?persistentId=doi:10.7910/DVN/HG7NV7/EIR0RA -O /danny/data/airline_on_time/2008.csv.bz2
+
+//--압축해제.... (명령어 한번에 실행.... w/o $기호)
+bzip2 -d /danny/data/airline_on_time/1997.csv.bz2
+bzip2 -d /danny/data/airline_on_time/1998.csv.bz2
+bzip2 -d /danny/data/airline_on_time/1999.csv.bz2
+bzip2 -d /danny/data/airline_on_time/2000.csv.bz2
+bzip2 -d /danny/data/airline_on_time/2001.csv.bz2
+bzip2 -d /danny/data/airline_on_time/2002.csv.bz2
+bzip2 -d /danny/data/airline_on_time/2003.csv.bz2
+bzip2 -d /danny/data/airline_on_time/2004.csv.bz2
+bzip2 -d /danny/data/airline_on_time/2005.csv.bz2
+bzip2 -d /danny/data/airline_on_time/2006.csv.bz2
+bzip2 -d /danny/data/airline_on_time/2007.csv.bz2
+bzip2 -d /danny/data/airline_on_time/2008.csv.bz2
+
+//--확인.... (/danny/data/airline_on_time/1997.csv~2008.csv) (총 12개 csv 파일....)
+$ ls -alh /danny/data/airline_on_time
+$ du -sh /danny/data/airline_on_time
+
+
+
+
+-------------------------------------------------------------------------------
+- Airline On Time Data 업로드.... (on HDFS, to hdfs://spark-master-01:9000/) (on spark-master-01)
+-------------------------------------------------------------------------------
+//--HDFS 디렉토리 생성.... (/danny)
+$ /danny/hadoop3/bin/hdfs dfs -mkdir -p /danny
+
+//--HDFS 업로드.... (-put)
+$ /danny/hadoop3/bin/hdfs dfs -put -f /danny/data /danny/
+
+//--HDFS 확인.... (/danny/data/airline_on_time/1997.csv~2008.csv) (총 12개 csv 파일....)
+$ /danny/hadoop3/bin/hdfs dfs -ls -h /danny/data/airline_on_time
+$ /danny/hadoop3/bin/hdfs dfs -du -s -h /danny/data/airline_on_time
+6.4 G  19.3 G  /danny/data/airline_on_time  (-> 6.4 G: 원본 총합, 19.3 G: Replica 총합) 
+
+//--HDFS 웹UI확인.... (List, Head, Tail, Blocks)
+http://spark-master-01:9870/
+HDFS 웹UI > Utilities > Browse the file system > 경로 이동(/danny/data/airline_on_time) > 1997.csv~2008.csv (총 12개 csv 파일....)
+파일 Name 링크 > 팝업 > Head the file (first 32K), Tail the file (last 32K), Block information (파일원본크기/Block크기128MB -> Block 개수, Block 당 Replica 3개)
+ex) 1997.csv (515.32 MB) -> 515.32 MB/128 MB = 4.0259375 (5개 Block) -> Block 0 ~ 3 size 134217728 (128 MB) x 4개 + Block 4 size 3476949 (3.32 MB) = 515.32 MB
+
+
+
+

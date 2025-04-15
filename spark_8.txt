@@ -1,0 +1,288 @@
+
+[ Chapter.02 Apache Spark 기초-28. Hadoop 클러스터 구성 (YARN 테스트).... ]
+
+-------------------------------------------------------------------------------
+- YARN 테스트.... (by spark-shell YARN 클러스터 실행)
+-------------------------------------------------------------------------------
+//--spark-shell 도움말 보기....
+$ cd /danny/spark3
+$ ./bin/spark-shell --help  (-> --master 옵션 확인....)
+  --master MASTER_URL         spark://host:port, mesos://host:port, yarn,
+                              k8s://https://host:port, or local (Default: local[*]).
+
+//--spark-shell 실행.... (w/ --master yarn)
+$ ./bin/spark-shell --master yarn
+Exception in thread "main" org.apache.spark.SparkException: When running with master 'yarn' either HADOOP_CONF_DIR or YARN_CONF_DIR must be set in the environment.
+
+
+
+
+-------------------------------------------------------------------------------
+- YARN 설정파일 구성.... (core-site.xml, yarn-site.xml)
+-------------------------------------------------------------------------------
+//--CONF 디렉토리 생성.... (for HADOOP_CONF_DIR / YARN_CONF_DIR)
+$ mkdir -p /danny/spark3/conf2
+
+//--core-site.xml 설정.... (under /danny/spark3/conf2/)
+$ vi /danny/spark3/conf2/core-site.xml
+<configuration>
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://spark-master-01:9000/</value>
+    </property>
+</configuration>
+
+//--yarn-site.xml 설정.... (under /danny/spark3/conf2/)
+$ vi /danny/spark3/conf2/yarn-site.xml
+<configuration>
+    <property>
+        <name>yarn.resourcemanager.hostname</name>
+        <value>spark-master-01</value>
+    </property>
+</configuration>
+
+
+
+
+-------------------------------------------------------------------------------
+- YARN 테스트....#2 (by spark-shell YARN 클러스터 실행) (w/ YARN_CONF_DIR)
+-------------------------------------------------------------------------------
+//--spark-shell 실행.... (w/ --master yarn) (w/ YARN_CONF_DIR=/danny/spark3/conf2)
+$ cd /danny/spark3
+$ YARN_CONF_DIR=/danny/spark3/conf2 ./bin/spark-shell --master yarn
+
+//--spark-shell 확인....
+scala> sc
+scala> spark
+scala> sc.master
+res2: String = yarn
+scala> sc.uiWebUrl
+res3: Option[String] = Some(http://spark-master-01:4040)
+
+//--Spark App 웹UI 확인....
+http://spark-master-01:4040
+-> url redirect (http://spark-master-01:8088/proxy/redirect/application_1654391540349_0001/)
+-> 8088???? (YARN ResourceManager HTTP Default Port 8088)
+-> 보안 강화를 위해 우리는 8188로 변경했다! (through 8088 http port -> attacks: get-shell(YARN) etc.)
+-> Spark App에게 Prot가 8188로 변경되었음을 알려주자....
+
+** 잠깐!, YARN 웹UI의 Tracking UI/URL(ApplicationMaster)은?
+-> http://spark-master-01:8188/proxy/application_1654391540349_0001/
+-> 당연히 변경된 Port 8188로 되어 있음. 잘 보여짐!
+
+//--yarn-site.xml (추가) 설정.... (under /danny/spark3/conf2/)
+$ vi /danny/spark3/conf2/yarn-site.xml
+<configuration>
+    <property>
+        <name>yarn.resourcemanager.hostname</name>
+        <value>spark-master-01</value>
+    </property>
+    <!-- port 변경이 필요할 경우.... (resourcemanager....) --> <!-- Stop attacks: get-shell(YARN) etc. -->
+    <property>
+        <name>yarn.resourcemanager.webapp.address</name>
+        <!--
+        <value>spark-master-01:8088</value>
+        -->
+        <value>spark-master-01:8188</value>
+    </property>
+</configuration>
+
+//--spakr-shell (재)실행.... (w/ --master yarn) (w/ YARN_CONF_DIR=/danny/spark3/conf2)
+$ cd /danny/spark3
+$ YARN_CONF_DIR=/danny/spark3/conf2 ./bin/spark-shell --master yarn
+scala> sc.uiWebUrl
+res3: Option[String] = Some(http://spark-master-01:4040)
+
+//--Spark App 웹UI (재)확인....
+http://spark-master-01:4040
+-> url redirect (http://spark-master-01:8188/proxy/redirect/application_1654391540349_0002/)
+-> 변경된 Port 8188로 잘 연결됨!
+Executors > executor 2개 할당된 것 확인.... (only executor 2개 ????) (only 1 core ????)
+Miscellaneous Process > yarn-am 확인....
+
+
+
+
+-------------------------------------------------------------------------------
+- YARN 테스트....#3 (by spark-shell YARN 클러스터 실행) (w/ Executor의 MEMORY, COREs, NUM 옵션)
+-------------------------------------------------------------------------------
+//--spark-shell 도움말 보기....
+$ cd /danny/spark3
+$ ./bin/spark-shell --help  (-> --executor-memory, --executor-cores, --num-executors 옵션 확인....)
+  --executor-memory MEM       Memory per executor (e.g. 1000M, 2G) (Default: 1G). 
+
+ Spark standalone, YARN and Kubernetes only:
+  --executor-cores NUM        Number of cores used by each executor. (Default: 1 in
+                              YARN and K8S modes, or all available cores on the worker
+                              in standalone mode).
+
+ Spark on YARN and Kubernetes only:
+  --num-executors NUM         Number of executors to launch (Default: 2).
+                              If dynamic allocation is enabled, the initial number of
+                              executors will be at least NUM.
+
+//--spark-shell 실행.... (w/ --master yarn) (w/ YARN_CONF_DIR=/danny/spark3/conf2) (w/ memory,cores,num 옵션)
+$ cd /danny/spark3
+$ YARN_CONF_DIR=/danny/spark3/conf2 ./bin/spark-shell --master yarn --executor-memory 4G --executor-cores 4 --num-executors 3
+
+//--Spark App 웹UI 확인.... (-> executor 3개, cores 4개 Good!!!!)
+http://spark-master-01:4040
+Executors > executor 3개 할당된 것 확인.... executor 당 cores 4개 할당된 것 확인....
+
+//--YARN 웹UI(에서도) (재)확인.... (-> executor 3개, cores 1개???? Bad!!!!)
+http://spark-master-01:8188
+Cluster > Applications > ID 링크 > Attempt ID 링크 > Container ID
+AM Container (1개): 1024 Memory, 1 VCores (-> Default Resource, OK!)
+Executor Container (3개): 5120 Memory, 1 VCores (-> 1GB Memory Overhead! OK!, But 1 VCores???? executor 당 cores 4개 요청했는데????)
+
+//--YARN의 capacity-scheduler.xml 설정.... (DefaultResourceCalculator -> DominantResourceCalculator) (on spark-master-01)
+$ vi /danny/hadoop3/etc/hadoop/capacity-scheduler.xml
+<configuration>
+....
+    <property>
+        <name>yarn.scheduler.capacity.resource-calculator</name>
+        <!--<value>org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator</value>-->
+        <value>org.apache.hadoop.yarn.util.resource.DominantResourceCalculator</value>
+        <description>
+	The ResourceCalculator implementation to be used to compare
+	Resources in the scheduler.
+	The default i.e. DefaultResourceCalculator only uses Memory while
+	DominantResourceCalculator uses dominant-resource to compare
+	multi-dimensional resources such as Memory, CPU etc.
+        </description>
+    </property>
+....
+</configuration>
+
+//--copy 'capacity-scheduler.xml' to spark-worker-01 ~ 03.... (on spark-master-01)
+$ scp -r /danny/hadoop3/etc/hadoop/capacity-scheduler.xml spark@spark-worker-01:/danny/hadoop3/etc/hadoop/
+$ scp -r /danny/hadoop3/etc/hadoop/capacity-scheduler.xml spark@spark-worker-02:/danny/hadoop3/etc/hadoop/
+$ scp -r /danny/hadoop3/etc/hadoop/capacity-scheduler.xml spark@spark-worker-03:/danny/hadoop3/etc/hadoop/
+
+//--YARN 재시작.... (on spark-master-01)
+$ /danny/hadoop3/sbin/stop-yarn.sh
+$ /danny/hadoop3/sbin/start-yarn.sh
+
+//--spakr-shell (재)실행.... (w/ --master yarn) (w/ YARN_CONF_DIR=/danny/spark3/conf2) (w/ memory,cores,num 옵션)
+$ cd /danny/spark3
+$ YARN_CONF_DIR=/danny/spark3/conf2 ./bin/spark-shell --master yarn --executor-memory 4G --executor-cores 4 --num-executors 3
+
+//--Spark App 웹UI 확인.... (-> executor 3개, cores 4개 Good!!!!)
+http://spark-master-01:4040
+Executors > executor 3개 할당된 것 확인.... executor 당 cores 4개 할당된 것 확인....
+
+//--YARN 웹UI(에서도) (재)확인.... (-> executor 3개, cores 4개 Good!!!!)
+http://spark-master-01:8188
+Cluster > Applications > ID 링크 > Attempt ID 링크 > Container ID
+AM Container (1개): 1024 Memory, 1 VCores (-> Default Resource, OK!)
+Executor Container (3개): 5120 Memory, 4 VCores (-> 1GB Memory Overhead! OK!, 4 VCores, OK!)
+
+//--driver 프로세스 확인.... (on spark-master-01)
+$ jps
+SparkSubmit
+
+//--executor(3개), am(1개) 프로세스 확인.... (on spark-worker-01 ~ 03)
+$ jps
+ExecutorLauncher  -> am 프로세스....
+YarnCoarseGrainedExecutorBackend  -> executor 프로세스....
+
+** YARN 웹UI에서 AM Container 위치(Node정보)와 프로세스 이름(Logs링크/launch_container.sh)을 확인.... 
+** Spark App 웹UI에서(도) AM Container 위치(Executors > Miscellaneous Process)를 확인....
+
+//--HDFS의 .sparkStaging 디렉토리 확인.... (YARN 웹UI)
+/user/spark/.sparkStaging/<application_id>
+__spark_conf__.zip
+__spark_libs__xxxxxxx.zip
+
+
+
+
+-------------------------------------------------------------------------------
+- YARN 테스트....#4 (by spark-shell YARN 클러스터 실행) (Word Count 코드 작성)
+-------------------------------------------------------------------------------
+//--spakr-shell 실행.... (w/ --master yarn) (w/ YARN_CONF_DIR=/danny/spark3/conf2) (w/ memory,cores,num 옵션)
+$ cd /danny/spark3
+$ YARN_CONF_DIR=/danny/spark3/conf2 ./bin/spark-shell --master yarn --executor-memory 4G --executor-cores 4 --num-executors 3
+
+//--디폴트로 HDFS 경로로 인식... (by core-site.xml)
+scala> val rdd_wc = sc.textFile("README.md").flatMap(_.split(" ")).map((_,1)).reduceByKey(_+_)
+org.apache.hadoop.mapred.InvalidInputException: Input path does not exist: hdfs://spark-master-01:9000/user/spark/README.md
+
+//--로컬FileSystem 경로로 지정.... driver입장에서는 파일이 있다....
+scala> val rdd_wc = sc.textFile("file:///danny/spark3/README.md").flatMap(_.split(" ")).map((_,1)).reduceByKey(_+_)
+rdd_wc: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[8] at reduceByKey at <console>:23
+
+//--driver 로컬FS에는 있는데, executor가 구동중인 노드의 로컬FS에는 없다????
+scala> rdd_wc.collect.take(10).foreach(println)
+WARN TaskSetManager: Lost task 0.0 in stage 0.0 (TID 0) (spark-worker-01 executor 1): java.io.FileNotFoundException: File file:/danny/spark3/README.md does not exist
+....
+ERROR TaskSetManager: Task 0 in stage 0.0 failed 4 times; aborting job
+org.apache.spark.SparkException: Job aborted due to stage failure: Task 0 in stage 0.0 failed 4 times, most recent failure: Lost task 0.3 in stage 0.0 (TID 6) (spark-worker-01 executor 1): java.io.FileNotFoundException: File file:/danny/spark3/README.md does not exist
+
+** Spark App 웹UI 확인....
+Jobs > Failed Jobs > Failed Stages > Tasks > Index (0, 1).... Task ID (0 ~ 6).... Status (FAILED / KILLED).... Executor ID / Host.... Errors (java.io.FileNotFoundException / Stage cancelled)....
+
+//--그래서, driver 노드와 executor 노드 모두에 있는 Hadoop의 README.txt 파일로 해보자....
+scala> val rdd_wc = sc.textFile("file:///danny/hadoop3/README.txt").flatMap(_.split(" ")).map((_,1)).reduceByKey(_+_)
+rdd_wc: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[37] at reduceByKey at <console>:23
+
+//--액션 수행.... 성공....
+scala> rdd_wc.collect.foreach(println)
+(information,1)
+(http://hadoop.apache.org/,1)
+(our,2)
+(,9)
+(wiki,,1)
+(please,1)
+(For,1)
+(visit,1)
+(about,1)
+(website,1)
+(Hadoop,,1)
+(https://cwiki.apache.org/confluence/display/HADOOP/,1)
+(at:,2)
+(and,1)
+(latest,1)
+(the,1)
+
+** Spark App 웹UI 확인....
+Jobs > Completed Jobs > Completed Stages > Tasks > Index (0, 1).... Task ID (7 ~ 8).... Attempt (0).... Status (SUCCESS).... Executor ID / Host.... Input Size / Records.... Shuffle Write Size / Records....
+
+** Hadoop의 README.txt 파일 확인.... (웹UI의 Task별 Input Records와 Shuffle Records를 실제 파일내용과 비교하여 추정해 보자....)
+$ vi /danny/hadoop3/README.txt (-> key별로 1개의 Shuffle Record에 모두 write 함.... ex) Shuffle Records가 6개이면, 6개의 unique key가 있음을 의미....)
+
+//--이번엔, 파티션 1개로 읽어 Task 1개만 실행되도록 하자.... 
+scala> val rdd_wc2 = sc.textFile("file:///danny/hadoop3/README.txt", 1).flatMap(_.split(" ")).map((_,1)).reduceByKey(_+_)
+rdd_wc2: org.apache.spark.rdd.RDD[(String, Int)] = ShuffledRDD[9] at reduceByKey at <console>:23
+
+//--액션 수행.... 성공....
+scala> rdd_wc2.collect.foreach(println)
+(For,1)
+(visit,1)
+(about,1)
+(website,1)
+(information,1)
+(Hadoop,,1)
+(our,2)
+(http://hadoop.apache.org/,1)
+(,9)
+(https://cwiki.apache.org/confluence/display/HADOOP/,1)
+(wiki,,1)
+(please,1)
+(at:,2)
+(and,1)
+(latest,1)
+(the,1)
+
+** Spark App 웹UI 확인....
+Task 1개, Input Records 7개, Shuffle Write Records 16개 (-> key에 해당하는 word가 16개임....)
+
+//--key(word) 개수 확인....
+scala> rdd_wc2.count()
+res2: Long = 16
+
+scala> :q
+
+
+
+

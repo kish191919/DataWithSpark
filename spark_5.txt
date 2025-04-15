@@ -1,0 +1,76 @@
+
+[ Chapter.02 Apache Spark 기초-25. Hadoop 클러스터 구성 (HDFS 테스트).... ]
+
+-------------------------------------------------------------------------------
+- HDFS 테스트.... (by HDFS 웹UI)
+-------------------------------------------------------------------------------
+//--디렉토리 리스트....
+HDFS 웹UI > Utilities > Browse the file system
+
+//--디렉토리 생성....
+Create Directory > 디렉토리 이름 입력 > Create
+
+** 만약 디렉토리 생성 시 에러가 발생한다면? (필요시 core-site.xml에 staticuser 추가, HDFS 재시작) (on spark-master-01)
+Permission denied: user=dr.who, access=WRITE, inode="/":spark:supergroup:drwxr-xr-x
+$ vi /danny/hadoop3/etc/hadoop/core-site.xml
+<configuration>
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://spark-master-01:9000/</value>
+    </property>
+    <!-- static user.... --> <!-- Permission denied: user=dr.who, access=WRITE, inode="/":spark:supergroup:drwxr-xr-x -->
+    <property>
+        <name>hadoop.http.staticuser.user</name>
+        <value>spark</value>
+    </property>
+</configuration>
+$ scp /danny/hadoop3/etc/hadoop/core-site.xml spark-worker-01:/danny/hadoop3/etc/hadoop/
+$ scp /danny/hadoop3/etc/hadoop/core-site.xml spark-worker-02:/danny/hadoop3/etc/hadoop/
+$ scp /danny/hadoop3/etc/hadoop/core-site.xml spark-worker-03:/danny/hadoop3/etc/hadoop/
+$ /danny/hadoop3/sbin/stop-dfs.sh
+$ /danny/hadoop3/sbin/start-dfs.sh
+
+//--파일 업로드....
+Upload Files > 파일 선택 > Upload
+
+** 만약 파일 업로드가 안된다면? (필요시 방화벽 오픈, HDFS DataNode HTTP, 9864) (필요시 로컬PC /etc/hosts 설정)
+크롬 브라우저 > 도구 더보기 > 개발자 도구 (Ctrl + Shift + I) > Network > Request URL 포트 확인
+Request URL: http://spark-worker-03:9864/webhdfs/v1/....
+Request URL: http://spark-worker-02:9864/webhdfs/v1/....
+Request URL: http://spark-worker-01:9864/webhdfs/v1/....
+
+//--Download, Head the file (first 32K), Tail the file (last 32K)
+파일 Name 링크 > 팝업 > Download
+파일 Name 링크 > 팝업 > Head the file (first 32K)
+파일 Name 링크 > 팝업 > Tail the file (last 32K)
+
+//--Cut & Pate, Parent Directory, Delete
+
+
+
+
+-------------------------------------------------------------------------------
+- HDFS 테스트.... (by HDFS CLI Command) (on spark-master-01, spark-worker-01 ~ 03)
+-------------------------------------------------------------------------------
+//--디렉토리 리스트....
+$ /danny/hadoop3/bin/hdfs dfs -ls /
+
+//--디렉토리 생성....
+$ /danny/hadoop3/bin/hdfs dfs -mkdir -p /test/cli
+$ /danny/hadoop3/bin/hdfs dfs -find /
+
+//--파일 업로드....
+$ /danny/hadoop3/bin/hdfs dfs -put -f /danny/jdk8 /test/cli/
+
+//--Download, Head the file (first 32K), Tail the file (last 32K)
+$ /danny/hadoop3/bin/hdfs dfs -get /test/cli /danny/
+$ /danny/hadoop3/bin/hdfs dfs -head /test/cli/jdk8/THIRD_PARTY_README
+$ /danny/hadoop3/bin/hdfs dfs -tail /test/cli/jdk8/THIRD_PARTY_README
+
+//--Cut & Pate, Parent Directory, Delete
+$ /danny/hadoop3/bin/hdfs dfs -mv /test/cli/jdk8/jre /test/cli/jdk8/../
+$ /danny/hadoop3/bin/hdfs dfs -rm -r -f /test
+
+
+
+

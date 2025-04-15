@@ -1,5 +1,5 @@
 
-[ Chapter.02 Apache Spark 기초-20. Spark 설치 및 실행 (다운로드, 설정, Shell).... ]
+[ Chapter.02 Apache Spark 기초-30. Spark 클러스터 구성 (다운로드, 설정).... ]
 
 -------------------------------------------------------------------------------
 - Spark Tarball 다운로드.... (spark 3.2.1 pre-built) (on spark-master-01)
@@ -14,11 +14,6 @@ $ cd /danny
 $ wget https://archive.apache.org/dist/spark/spark-3.2.1/spark-3.2.1-bin-hadoop3.2.tgz
 $ tar xvfz spark-3.2.1-bin-hadoop3.2.tgz
 $ mv spark-3.2.1-bin-hadoop3.2 spark3
-
-//--spark-shell 실행.... -> 안됨.... (JAVA_HOME is not set)
-$ cd /danny/spark3
-$ ./bin/spark-shell
-JAVA_HOME is not set -> JAVA_HOME 환경변수 설정 필요....
 
 
 
@@ -35,37 +30,39 @@ $ mv jdk-8u232-ojdkbuild-linux-x64 jdk8
 
 
 -------------------------------------------------------------------------------
-- JAVA_HOME 환경변수 설정.... (spark-env.sh) (on spark-master-01)
+- spark-env.sh 설정.... (on spark-master-01)
 -------------------------------------------------------------------------------
-$ cd /danny/spark3/conf
-$ cp spark-env.sh.template spark-env.sh
-$ vi spark-env.sh
+$ cp /danny/spark3/conf/spark-env.sh.template /danny/spark3/conf/spark-env.sh
+$ vi /danny/spark3/conf/spark-env.sh
 JAVA_HOME=/danny/jdk8
 
 
 
 
 -------------------------------------------------------------------------------
-- spark-shell 실행.... (on spark-master-01)
+- workers 설정.... (on spark-master-01)
 -------------------------------------------------------------------------------
-$ cd /danny/spark3
-$ ./bin/spark-shell
-scala> sc
-scala> spark
-scala> sc.master
-scala> sc.uiWebUrl
+$ cp /danny/spark3/conf/workers.template /danny/spark3/conf/workers
+$ vi /danny/spark3/conf/workers
+spark-worker-01
+spark-worker-02
+spark-worker-03
 
-//--프로세스 확인.... (SparkSubmit) (다른 터미널 하나 더 열어서)
-$ /danny/jdk8/bin/jps
-2800 Jps
-2692 SparkSubmit -> spark-shell 프로세스.... (Driver 프로세스)
 
-//--Driver 웹UI 확인.... (on 크롬 브라우저) (필요시 방화벽 오픈)
-http://spark-master-01:4040
 
-//--spark-shell 나가기....
-scala> (Ctrl + L) -> Console 화면 Clear....
-scala> :quit -> 나가기....
+
+-------------------------------------------------------------------------------
+- copy 'jdk8', 'spark3' to spark-worker-01 ~ 03.... (on spark-master-01)
+-------------------------------------------------------------------------------
+//--copy 'jdk8' to spark-worker-01 ~ 03....
+$ scp -r /danny/jdk8 spark@spark-worker-01:/danny/
+$ scp -r /danny/jdk8 spark@spark-worker-02:/danny/
+$ scp -r /danny/jdk8 spark@spark-worker-03:/danny/
+
+//--copy 'spark3' to spark-worker-01 ~ 03....
+$ scp -r /danny/spark3 spark@spark-worker-01:/danny/
+$ scp -r /danny/spark3 spark@spark-worker-02:/danny/
+$ scp -r /danny/spark3 spark@spark-worker-03:/danny/
 
 
 
@@ -81,5 +78,18 @@ $ source ~/.profile
 $ jps
 $ java -version
 $ javac -version
+
+
+
+
+-------------------------------------------------------------------------------
+- (옵션) copy '.profile' to spark-worker-01 ~ 03.... (on spark-master-01)
+-------------------------------------------------------------------------------
+//--copy '.profile' to spark-worker-01 ~ 03.... -> JPS 명령어에 대한 PATH 등록....
+$ scp -r ~/.profile spark@spark-worker-01:~/
+$ scp -r ~/.profile spark@spark-worker-02:~/
+$ scp -r ~/.profile spark@spark-worker-03:~/
+
+
 
 

@@ -1,0 +1,34 @@
+
+[ Chapter.02 Apache Spark 기초-27. Hadoop 클러스터 구성 (YARN 시작_종료).... ]
+
+-------------------------------------------------------------------------------
+- YARN 시작....
+-------------------------------------------------------------------------------
+//--YARN 시작.... (on spark-master-01)
+$ /danny/hadoop3/sbin/start-yarn.sh
+
+//--master 프로세스 확인.... (on spark-master-01)
+$ jps
+ResourceManager
+
+//--worker 프로세스 확인.... (on spark-worker-01 ~ 03)
+$ jps
+NodeManager
+
+//--YARN 웹UI 확인.... (on 크롬 브라우저) (필요시 방화벽 오픈, YARN ResourceManager HTTP, 8188) (필요시 방화벽 오픈, YARN NodeManager HTTP, 8042)
+http://spark-master-01:8188 (-> default port: 8088)
+Cluster > Nodes > Active Nodes 개수 및 Nodes 목록 확인.... > Node State, Mem Avail, VCores Avail 확인....
+Cluster > Nodes > Node Address > Node 간 내부 통신을 위한 포트는 이미 열려 있음 (필요시 방화벽 확인, VPC INTERNAL, All TCP, 0 - 65535, 10.0.0.0/16)
+Cluster > Nodes > Node HTTP Address > Node HTTP 링크 클릭.... > Node Information, List of Applications, List of Containers 확인....
+
+
+
+
+-------------------------------------------------------------------------------
+- YARN 종료.... (필요시) (on spark-master-01)
+-------------------------------------------------------------------------------
+$ /danny/hadoop3/sbin/stop-yarn.sh
+
+
+
+
